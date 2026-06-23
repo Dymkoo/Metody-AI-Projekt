@@ -20,20 +20,16 @@ df = pd.read_csv("Gaming_Academic_Performance.csv")
 print(df.head())
 print(df.info())
 
-# Binaryzacja zmiennej docelowej (GPA / academic score)
-# Zakładamy kolumnę 'GPA' lub 'academic_performance' – dostosuj nazwę!
-TARGET_COL = "grades"  # ← zmień na właściwą nazwę kolumny
+TARGET_COL = "grades"
 
 median_gpa = df[TARGET_COL].median()
-df["target"] = (df[TARGET_COL] >= median_gpa).astype(int)  # 1 = powyżej mediany
+df["target"] = (df[TARGET_COL] >= median_gpa).astype(int)
 
-# Enkodowanie zmiennych kategorycznych
 cat_cols = df.select_dtypes(include="object").columns.tolist()
 le = LabelEncoder()
 for col in cat_cols:
     df[col] = le.fit_transform(df[col].astype(str))
 
-# Podział na cechy i target
 FEATURE_COLS = [c for c in df.columns if c not in [TARGET_COL, "target"]]
 X = df[FEATURE_COLS].values
 y = df["target"].values
@@ -70,7 +66,6 @@ for name, model in models.items():
     }
     print(f"{name}: ACC={cv_results['test_accuracy'].mean():.3f} ± {cv_results['test_accuracy'].std():.3f}")
 
-# Analiza statystyczna – test Wilcoxona między najlepszym a resztą
 best = max(results_exp1, key=lambda n: results_exp1[n]["f1"].mean())
 print(f"\nNajlepszy model: {best}")
 for name, res in results_exp1.items():
@@ -78,7 +73,6 @@ for name, res in results_exp1.items():
         stat, p = stats.wilcoxon(results_exp1[best]["f1"], res["f1"])
         print(f"  Wilcoxon {best} vs {name}: p={p:.4f} {'*' if p < 0.05 else ''}")
 
-# Wykres wyników
 fig, ax = plt.subplots(figsize=(10, 5))
 f1_data = [results_exp1[n]["f1"] for n in models]
 ax.boxplot(f1_data, labels=models.keys())
@@ -90,7 +84,6 @@ plt.show()
 
 # ─── 3. EKSPERYMENT 2 – WPŁYW SELEKCJI CECH ─────────────────────────────────
 
-# Zakładamy, że znamy nazwy kolumn – dostosuj do datasetu!
 GAMING_COLS   = [c for c in FEATURE_COLS if "game" in c.lower() or "gaming" in c.lower() or "hour" in c.lower()]
 DEMOG_COLS    = [c for c in FEATURE_COLS if c not in GAMING_COLS]
 
@@ -100,7 +93,6 @@ feature_sets = {
     "Wszystkie cechy":     FEATURE_COLS,
 }
 
-# Dodaj wariant z selekcją RFE
 rf_base = RandomForestClassifier(n_estimators=100, random_state=42)
 rfe = RFE(estimator=rf_base, n_features_to_select=5)
 rfe.fit(X, y)
@@ -117,14 +109,12 @@ for set_name, cols in feature_sets.items():
     results_exp2[set_name] = cv_res["test_f1"]
     print(f"{set_name}: F1={cv_res['test_f1'].mean():.3f} ± {cv_res['test_f1'].std():.3f}")
 
-# Analiza statystyczna
 print("\nTesty statystyczne (Wilcoxon) vs 'Wszystkie cechy':")
 for name, scores in results_exp2.items():
     if name != "Wszystkie cechy":
         stat, p = stats.wilcoxon(results_exp2["Wszystkie cechy"], scores)
         print(f"  Wszystkie vs {name}: p={p:.4f} {'*' if p < 0.05 else ''}")
 
-# Wykres
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.boxplot(list(results_exp2.values()), labels=results_exp2.keys())
 ax.set_title("Eksperyment 2: Wpływ zestawu cech (RF, 10-fold CV)")
@@ -134,7 +124,7 @@ plt.tight_layout()
 plt.savefig("results/figures/exp2_features.png", dpi=150)
 plt.show()
 
-# ─── 4. FEATURE IMPORTANCE ───────────────────────────────────────────────────
+# ─── 4. WAŻNOŚĆ CECH ───────────────────────────────────────────────────
 rf_final = RandomForestClassifier(n_estimators=100, random_state=42)
 rf_final.fit(X, y)
 importances = pd.Series(rf_final.feature_importances_, index=FEATURE_COLS).sort_values(ascending=False)
